@@ -32,8 +32,7 @@ DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 
 if 'AIRFLOW_RUNALL_TESTS' in os.environ:
 
-    import airflow.hooks.kylin_hooks
-    import airflow.operators.presto_to_mysql
+    import airflow.contrib.hooks.kylin_hooks
 
     class KylinTest(unittest.TestCase):
         def setUp(self):
@@ -41,28 +40,13 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             self.nondefault_schema = "nondefault"
 
         def test_select_conn(self):
-            from airflow.hooks.kylin_hooks import KylinHook
+            from airflow.contrib.hooks.kylin_hooks import KylinHook
             sql = "select 1"
             hook = KylinHook()
             hook.get_records(sql)
 
-        def test_multi_statements(self):
-            from airflow.hooks.kylin_hooks import KylinHook
-            sqls = [
-                "CREATE TABLE IF NOT EXISTS test_multi_statements (i INT)",
-                "DROP TABLE test_multi_statements",
-            ]
-            hook = KylinHook()
-            hook.get_records(sqls)
-
-        def test_get_metastore_databases(self):
-            if six.PY2:
-                from airflow.hooks.kylin_hooks import HiveMetastoreHook
-                hook = HiveMetastoreHook()
-                hook.get_databases()
-
         def test_to_csv(self):
-            from airflow.hooks.kylin_hooks import KylinHook
+            from airflow.contrib.hooks.kylin_hooks import KylinHook
             sql = "select 1"
             hook = KylinHook()
             hook.to_csv(hql=sql, csv_filepath="/tmp/test_to_csv")
@@ -74,7 +58,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
 
         @mock.patch('KylinHook.connect', return_value="foo")
         def test_select_conn_with_schema(self, connect_mock):
-            from airflow.hooks.kylin_hooks import KylinHook
+            from airflow.contrib.hooks.kylin_hooks import KylinHook
 
             # Configure
             hook = KylinHook()
@@ -88,7 +72,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             self.assertEqual(self.nondefault_schema, kwargs['database'])
 
         def test_get_results_with_schema(self):
-            from airflow.hooks.kylin_hooks import KylinHook
+            from airflow.contrib.hooks.kylin_hooks import KylinHook
             from unittest.mock import MagicMock
 
             # Configure
@@ -116,7 +100,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
 
         @mock.patch('KylinHook.get_results', return_value={'data': []})
         def test_get_records_with_schema(self, get_results_mock):
-            from airflow.hooks.kylin_hooks import KylinHook
+            from airflow.contrib.hooks.kylin_hooks import KylinHook
 
             # Configure
             sql = "select 1"
@@ -133,7 +117,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
 
         @mock.patch('KylinHook.get_results', return_value={'data': []})
         def test_get_pandas_df_with_schema(self, get_results_mock):
-            from airflow.hooks.kylin_hooks import KylinHook
+            from airflow.contrib.hooks.kylin_hooks import KylinHook
 
             # Configure
             sql = "select 1"

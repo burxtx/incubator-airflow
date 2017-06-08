@@ -17,14 +17,10 @@ import logging
 import json
 import time
 
-from pykylin import connection,proxy
-import requests
+from pykylin import connection, proxy
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
-
-class AirflowDruidLoadException(AirflowException):
-    pass
 
 
 class KylinHook(BaseHook):
@@ -34,12 +30,12 @@ class KylinHook(BaseHook):
 
     def __init__(
             self,
-            project,
-            kylin_conn_id='kylin_conn_id',
-            default_conn_name = 'kylin_default'):
+            project='learn_kylin',
+            kylin_conn_id=' kylin_default',
+            default_conn_name='kylin_default'):
         self.kylin_conn_id = kylin_conn_id
         self.default_conn_name = default_conn_name
-        # self.header = {'content-type': 'application/json'}
+        self.project = project
 
     def get_conn(self):
         """
@@ -47,36 +43,58 @@ class KylinHook(BaseHook):
         """
         conn = self.get_connection(self.kylin_conn_id)
         return connection.connect(conn.login, conn.password,
-            "http://{conn.host}:{conn.port}/kylin/api".format(**locals(),
-                self.project),
-            # conn.extra_dejson.get('endpoint', '')
-            )
+                                  "http://{conn.host}:{conn.port}/kylin/api".format(
+                                      **locals()),
+                                  self.project)
 
     def get_cube_details(self, cube_name, limit=50, offset=0):
         '''
         Returns kylin cube details
         '''
-        conn = self.get_conn(self.kylin_conn_id)
+        conn = self.get_conn()
         route = 'cubes'
-        data = {'cubeName':cube_name,'limit':limit, 'offset':offset}
+        data = {'cubeName': cube_name, 'limit': limit, 'offset': offset}
         return conn.proxy.get(route, data=data)
 
     def build_cube(self, cube_name, end_time, start_time=0, build_type="BUILD"):
         '''
         Build kylin cube
         '''
-        conn = self.get_conn(self.kylin_conn_id)
+        conn = self.get_conn()
         route = 'cubes/{cube_name}/rebuild'.format(**locals())
-        data = {'startTime':start_time, 'endTime':end_time, 'buildType':build_type}
+        data = {'startTime': start_time,
+                'endTime': end_time, 'buildType': build_type}
         return conn.proxy.put(route, data=data)
 
     def get_query_result(self, sql):
         '''
         get query result
         '''
-        conn = self.get_conn(self.kylin_conn_id)
-        conn.cursor.execute(sql)
-        return conn.results
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        rc = cursor.execute(sql)
+        results = cursor.results
+        return results
+
+    def get_query_rc(self, sql):
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        rc = cursor.execute(sql)
+        return rc
+
+    def get_query_label(self, sql):
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        rc = cursor.execute(sql)
+        desc = cursor.description
+        labels = [c[0] for c in desc]
+        return labels
 
     def get_pandas_df(self, sql, schema='default'):
-        pass
+        results = self.get_query_result(sql)
+        labels = self.get_query_label(sql)
+
+        import pandas as pd
+        df = pd.DataFrame(results)
+        df.columns = labels
+        return df
